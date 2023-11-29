@@ -1,0 +1,10 @@
+Valor función objetivo: 165846.7165554452
+Suma de distancias: 19098.7619546164
+
+Distancia minima: 1.0092949180
+Distancia maxima: 45.0101592713
+Distancia promedio: 5.9720956706
+
+Pocisiones ambulancias:
+Longitud Latitud
+-102.2818364655 21.8838705744

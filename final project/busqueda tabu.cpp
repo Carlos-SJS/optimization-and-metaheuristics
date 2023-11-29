@@ -68,6 +68,13 @@ struct KDTree {
 		return best;
 	}
 	pair<double,pt> nearest(pt p){return search(p,root);}
+
+    void delete_tree(Node* n){
+        if(n->first!=0) delete_tree(n->first);
+        if(n->second!=0) delete_tree(n->second);
+        delete(n);
+    }
+    void delete_tree(){delete_tree(root);}
 };
 
 struct accident{
@@ -87,36 +94,37 @@ int get_weight(int heridas, int muertes, int tipo){
     return 1;
 }
 
+// Covert lat,lon to x,y in Km
 pt lat_lon_to_cartesian(double lat, double lon){
     double lon_origin = -102.283387471420;
     double lat_origin = 21.882583053608;
-    //Convert latitude and longitude from degrees to radians
+
     lat = lat * PI / 180.0;
     lon = lon * PI / 180.0;
     lat_origin = lat_origin * PI / 180.0;
     lon_origin = lon_origin * PI / 180.0;
 
-    //Radius of the Earth in kilometers (mean value)
     double R = 6371.0;
 
-    //Equirectangular projection
     double x = R * (lon - lon_origin) * cos(0.5 * (lat + lat_origin));
     double y = R * (lat - lat_origin);
 
     return pt(x, y);
 }
 
+// Convert x,y to lat lon
 pair<double, double> caretsian_to_lat_lon(pt p){
-    //Radius of the Earth in kilometers (mean value)
     double R = 6371.0;
     double lon_origin = -102.283387471420;
     double lat_origin = 21.882583053608;
+    lat_origin = lat_origin * PI / 180.0;
+    lon_origin = lon_origin * PI / 180.0;
 
     double lat = p.y / R + lat_origin;
     double lon = (p.x / R) / cos(0.5 * (lat + lat_origin)) + lon_origin;
 
-    lat = lat*180/PI;
-    lon = lon*180/PI;
+    lat = lat*180.0/PI;
+    lon = lon*180.0/PI;
 
     return {lat, lon};
 }
@@ -171,6 +179,25 @@ double evaluate(vector<pt> &amb, double &min_d, double &max_d){
         total_cost += cost;
     }
 
+    kd_ambulances.delete_tree();
+
+    return total_cost;
+}
+
+double evaluate(vector<pt> &amb){
+    kd_ambulances = KDTree(amb);
+
+    double total_cost = 0;
+    for(auto a : accidents){
+        double dist_ambulance = kd_ambulances.nearest(a->pos).f;
+        double dist_hospital = kd_hospitals.nearest(a->pos).f;
+
+        double cost = sqrt(dist_ambulance) + sqrt(dist_hospital);
+        total_cost += cost;
+    }
+
+    kd_ambulances.delete_tree();
+
     return total_cost;
 }
 
@@ -186,9 +213,12 @@ double cuad_evaluate(vector<pt> &amb){
         total_cost += cost*cost*a->weight;
     }
 
+    kd_ambulances.delete_tree();
+
     return total_cost;
 }
 
+// Hash a vector of doubles
 pair<size_t, size_t> hash_vector(std::vector<pt> vec) {
     std::hash<double> hasher;
     size_t result1 = 0, result2 = 0;
@@ -208,8 +238,8 @@ pair<size_t, size_t> hash_vector(std::vector<pt> vec) {
 
 // K is the number of ambulances to place
 // it is the allowed number of iterations
+// a_dist is the distance an ambulance can move in some direction
 vector<pt> tabu_search(int k, int it, vector<pt> ambulances, double a_dist){
-    cout << k << " " << a_dist << '\n';
     const int directions = 16;
     const double rotation_angle = 2*PI/((double)directions); // Number of directions an ambulance can go for finding neighbors
 
@@ -220,7 +250,7 @@ vector<pt> tabu_search(int k, int it, vector<pt> ambulances, double a_dist){
 
     double best, current;
     best = current = cuad_evaluate(ambulances);
-
+     cout << it << " " << a_dist << ": " << best << '\n';
 
     set<pair<size_t, size_t>> tabu_tbl;
     tabu_tbl.insert(hash_vector(ambulances));
@@ -264,42 +294,55 @@ vector<pt> tabu_search(int k, int it, vector<pt> ambulances, double a_dist){
     return best_ambulances;
 }
 
+// Generate an initial solution and pass it through rabu search with different values of a_dist
 void tabu_search(int k, vector<pt> &ambulances){
     gen_initial_solution(ambulances, k);
-    ambulances = tabu_search(k, 200, ambulances, 1);
-    ambulances = tabu_search(k, 100, ambulances, .5);
-    ambulances = tabu_search(k, 20, ambulances, 1);
-    ambulances = tabu_search(k, 100, ambulances, .1);
-    ambulances = tabu_search(k, 20, ambulances, 1);
-    ambulances = tabu_search(k, 100, ambulances, .05);
+    ambulances = tabu_search(k, 400, ambulances, 1);
+    ambulances = tabu_search(k, 200, ambulances, .5);
+    ambulances = tabu_search(k, 50, ambulances, 1);
+    ambulances = tabu_search(k, 150, ambulances, .1);
+    ambulances = tabu_search(k, 50, ambulances, 1);
+    ambulances = tabu_search(k, 125, ambulances, .05);
     ambulances = tabu_search(k, 20, ambulances, 1);
     ambulances = tabu_search(k, 100, ambulances, .01);
-    ambulances = tabu_search(k, 20, ambulances, 1);
+    ambulances = tabu_search(k, 100, ambulances, 1);
     ambulances = tabu_search(k, 100, ambulances, .001);
-    ambulances = tabu_search(k, 20, ambulances, 1);
+    ambulances = tabu_search(k, 100, ambulances, 1);
 }
 
 int main(){
     load_data();
     
-    int k = 15;
-    vector<pt> ambulances(k);
-    tabu_search(k, ambulances);
+    int k;
+    vector<int> tests{1, 5, 10, 15, 25, 50, 75};
 
-    double min_dist = LONG_LONG_MAX, max_dist = LONG_LONG_MIN;
-    double distance_sum = evaluate(ambulances, min_dist, max_dist);
-    
-    cout << "Suma de distancias (amulancia->accidente + accidente->hospital): " << distance_sum << '\n';
-    cout << "Minima distancia: " << min_dist << '\n';
-    cout << "Maxima distancia: " << max_dist << '\n';
-    cout << "Distancia promedio: " << distance_sum/(double)accidents.size() << '\n';
-    cout << '\n';
+    for(int t: tests){
+        cout << "Case " << t << '\n';
+        k = t;
+        vector<pt> ambulances(k);
 
-    cout << "Ambulancias (Longitud, Latitud): \n";
-    for(int i=0; i<k; i++){
-        auto p = caretsian_to_lat_lon(ambulances[i]);
-        cout << p.s << ", " << p.f << '\n';
+        tabu_search(k, ambulances);
+
+        double min_dist = LONG_LONG_MAX, max_dist = LONG_LONG_MIN;
+        double distance_sum = evaluate(ambulances, min_dist, max_dist);
+
+        ofstream f("results/" + to_string(k) + "_ambulances.txt");
+        f << fixed << setprecision(10);
+
+        f << "Valor función objetivo: " << cuad_evaluate(ambulances) << '\n';
+        f << "Suma de distancias: " << distance_sum << "\n\n";
+
+        // Estas distancias son equivalentes a tiempo en minutos asumiendo 60km/h
+        f << "Distancia minima: " << min_dist << '\n';
+        f << "Distancia maxima: " << max_dist << '\n';
+        f << "Distancia promedio: " << distance_sum/((double)accidents.size()) << "\n\n";
+
+        f << "Pocisiones ambulancias:\nLongitud Latitud\n";
+        for(int i=0; i<k; i++){
+            auto p = caretsian_to_lat_lon(ambulances[i]);
+            f << p.s << " " << p.f << '\n';
+        }
+
+        f.close();
     }
 }
-
-// 1 5 10 15 25 50 75 
