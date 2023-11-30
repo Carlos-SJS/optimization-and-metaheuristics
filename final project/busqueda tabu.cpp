@@ -313,9 +313,9 @@ void tabu_search(int k, vector<pt> &ambulances){
 
 int main(){
     load_data();
-    
+
     int k;
-    vector<int> tests{/*1, 5, 10,*/ 15/*, 25, 50, 75*/};
+    vector<int> tests{1, 5, 10, 15, 25, 50, 75};
 
     for(int t: tests){
         cout << "Case " << t << '\n';
