@@ -159,9 +159,10 @@ void load_data(){
 // Generate initial solution placing all ambulances equally spaced
 // in a circle arround the average accident point, using average distance to the center point as radius
 void gen_initial_solution(vector<pt> &amb, int k){
-    double d_angle = 2*PI / (double)k, angle = 0, radius = 4.049577795121;
+    double d_angle = 2*PI / ((double)k), angle = 0, radius = 4.049577795121;
     for(int i=0; i<k; i++){
         amb[i] = {sin(angle)*radius, cos(angle)*radius};
+        angle+=d_angle;
     }
 }
 
@@ -314,7 +315,7 @@ int main(){
     load_data();
     
     int k;
-    vector<int> tests{1, 5, 10, 15, 25, 50, 75};
+    vector<int> tests{/*1, 5, 10,*/ 15/*, 25, 50, 75*/};
 
     for(int t: tests){
         cout << "Case " << t << '\n';
